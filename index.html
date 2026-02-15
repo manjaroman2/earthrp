@@ -18,12 +18,16 @@
         <h2>Tasks</h2>
         <div class="task-list" id="taskList">
           <div class="task-row">
+            <span class="task-number">1.</span>
             <input type="text" class="task-desc" placeholder="Task description">
             <input type="text" class="task-diff" placeholder="e.g. 5 or 3-7">
             <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
           </div>
         </div>
-        <button class="btn btn-secondary" id="addTaskBtn" onclick="addTask()">+ Add Task</button>
+        <div class="task-buttons">
+          <button class="btn btn-secondary" id="addTaskBtn" onclick="addTask()">+ Add Task</button>
+          <button class="btn btn-secondary" id="importTaskBtn" onclick="openImportModal()">Import from Text</button>
+        </div>
       </div>
 
       <div class="panel players-panel">
@@ -40,10 +44,37 @@
         </div>
       </div>
 
-      <div class="panel target-panel">
-        <h2>Target Total Difficulty</h2>
-        <input type="number" id="targetDifficulty" placeholder="e.g. 50" min="1" step="0.5">
+      <div class="panel mode-panel">
+        <h2>Generation Mode</h2>
+        <div class="mode-toggle">
+          <label class="mode-option">
+            <input type="radio" name="genMode" value="totalScore" checked>
+            <span>Target Total Score</span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="genMode" value="taskCount">
+            <span>Number of Tasks</span>
+          </label>
+        </div>
+
+        <div class="mode-settings" id="totalScoreSettings">
+          <label class="mode-field-label">Target Total Difficulty</label>
+          <input type="number" id="targetDifficulty" placeholder="e.g. 50" min="1" step="0.5">
+        </div>
+
+        <div class="mode-settings" id="taskCountSettings" style="display: none;">
+          <label class="mode-field-label">Tasks per Player</label>
+          <input type="number" id="tasksPerPlayer" placeholder="e.g. 5" min="1" step="1">
+          <label class="mode-field-label" style="margin-top: 0.75rem;">Target Score</label>
+          <input type="number" id="taskCountTarget" placeholder="auto (lowest possible)" min="0" step="0.5">
+          <p class="mode-hint" id="taskCountHint"></p>
+        </div>
       </div>
+
+      <label class="checkbox-row">
+        <input type="checkbox" id="allowDuplicates" checked>
+        <span>Allow duplicate tasks between players</span>
+      </label>
 
       <button class="btn btn-primary" id="generateBtn" onclick="generate()">Generate Task Lists</button>
     </section>
@@ -54,6 +85,24 @@
     </section>
   </div>
 
-  <script type="module" src="/src/main.js"></script>
+  <div class="modal-overlay" id="importModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Import Tasks from Text</h2>
+        <button class="btn-icon" onclick="closeImportModal()" title="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-hint">Paste your task list. Expected format per line:<br><code>1. 2/ Task description here</code><br>where <code>2</code> is the difficulty (supports ranges like <code>3-5</code>).</p>
+        <textarea id="importText" placeholder="1. 2/ Papst Leopold - Sammle mindestes 7 Reliquien&#10;2. 2/ Dagobert Duck - Sammle 100.000 Gold&#10;3. 3-5/ Alles steht Kopf - Nimm den Kontinent ein"></textarea>
+        <div id="importPreview" class="import-preview"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
+        <button class="btn btn-primary" id="importConfirmBtn" onclick="confirmImport()" disabled>Confirm Import</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
