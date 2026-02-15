@@ -216,3 +216,8 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+// Expose functions used by inline onclick handlers
+window.addTask = addTask;
+window.removeTask = removeTask;
+window.generate = generate;
