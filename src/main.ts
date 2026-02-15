@@ -33,17 +33,27 @@ function renumberTasks(): void {
   });
 }
 
+function autoResizeDesc(el: HTMLTextAreaElement): void {
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+  el.addEventListener("input", () => {
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  });
+}
+
 function addTask(): void {
   const list = document.getElementById("taskList")!;
   const row = document.createElement("div");
   row.className = "task-row";
   row.innerHTML = `
     <span class="task-number"></span>
-    <input type="text" class="task-desc" placeholder="Task description">
     <input type="text" class="task-diff" placeholder="e.g. 5 or 3-7">
+    <textarea class="task-desc" placeholder="Task description" rows="1"></textarea>
     <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
   `;
   list.appendChild(row);
+  autoResizeDesc(row.querySelector(".task-desc") as HTMLTextAreaElement);
   renumberTasks();
 }
 
@@ -73,7 +83,7 @@ function gatherTasks(): Task[] {
   const rows = document.querySelectorAll(".task-row");
   const tasks: Task[] = [];
   for (const row of rows) {
-    const desc = (row.querySelector(".task-desc") as HTMLInputElement).value.trim();
+    const desc = (row.querySelector(".task-desc") as HTMLTextAreaElement).value.trim();
     const diffStr = (row.querySelector(".task-diff") as HTMLInputElement).value.trim();
     if (!desc || !diffStr) continue;
     const diff = parseDifficulty(diffStr);
@@ -229,12 +239,12 @@ function getGenMode(): string {
   return "totalScore";
 }
 
-function copyPlayerTasks(player: string, taskList: Task[], total: number): void {
-  let text = `**${player}**\n`;
-  taskList.forEach((t, i) => {
-    text += `${i + 1}. ${t.desc} [${t.diff.label}]\n`;
-  });
-  text += `Total: ${total}`;
+function formatTasksAsText(taskList: Task[]): string {
+  return taskList.map((t, i) => `${i + 1}. ${t.diff.label}/ ${t.desc}`).join("\n");
+}
+
+function copyPlayerTasks(player: string, taskList: Task[]): void {
+  const text = formatTasksAsText(taskList);
 
   navigator.clipboard.writeText(text).then(() => {
     // Find the button that was just clicked and give feedback
@@ -355,11 +365,13 @@ function generate(): void {
     resultsGrid.appendChild(warning);
   }
 
-  // Store results for copy handlers
+  // Store results for copy/export handlers
   const resultsCopy: { player: string; taskList: Task[]; total: number }[] = [];
+  lastResults = [];
 
   for (const result of results) {
     resultsCopy.push(result);
+    lastResults.push(result);
     const card = document.createElement("div");
     card.className = "player-card";
 
@@ -368,14 +380,14 @@ function generate(): void {
       : `${result.total.toFixed(1)} (target: ${target})`;
 
     let tasksHtml = "";
-    for (const task of result.taskList) {
+    result.taskList.forEach((task) => {
       tasksHtml += `
         <div class="task-item">
-          <span class="task-item-desc">${escapeHtml(task.desc)}</span>
-          <span class="task-item-diff">${escapeHtml(task.diff.label)}</span>
+          <span class="task-item-diff">${escapeHtml(task.diff.label)}/</span>
+          <span class="task-item-desc"> ${escapeHtml(task.desc)}</span>
         </div>
       `;
-    }
+    });
 
     card.innerHTML = `
       <div class="player-card-header">
@@ -398,7 +410,7 @@ function generate(): void {
     btn.addEventListener("click", () => {
       const playerName = btn.getAttribute("data-player")!;
       const r = resultsCopy.find((rc) => rc.player === playerName);
-      if (r) copyPlayerTasks(r.player, r.taskList, r.total);
+      if (r) copyPlayerTasks(r.player, r.taskList);
     });
   });
 
@@ -490,15 +502,91 @@ function confirmImport(): void {
     row.className = "task-row";
     row.innerHTML = `
       <span class="task-number"></span>
-      <input type="text" class="task-desc" placeholder="Task description" value="${escapeHtml(task.desc)}">
       <input type="text" class="task-diff" placeholder="e.g. 5 or 3-7" value="${escapeHtml(task.diffStr)}">
+      <textarea class="task-desc" placeholder="Task description" rows="1">${escapeHtml(task.desc)}</textarea>
       <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
     `;
     list.appendChild(row);
+    autoResizeDesc(row.querySelector(".task-desc") as HTMLTextAreaElement);
   }
   renumberTasks();
   closeImportModal();
 }
+
+// --- Export Tasks Input ---
+
+function openExportInputModal(): void {
+  const modal = document.getElementById("exportInputModal")!;
+  const exportText = document.getElementById("exportInputText")!;
+  const tasks = gatherTasks();
+  exportText.textContent = tasks.map((t, i) => `${i + 1}. ${t.diff.label}/ ${t.desc}`).join("\n");
+  modal.classList.add("active");
+}
+
+function closeExportInputModal(): void {
+  document.getElementById("exportInputModal")!.classList.remove("active");
+}
+
+document.getElementById("exportInputCopyBtn")!.addEventListener("click", () => {
+  const text = document.getElementById("exportInputText")!.textContent || "";
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById("exportInputCopyBtn")!;
+    btn.textContent = "Copied!";
+    btn.classList.add("copied");
+    setTimeout(() => {
+      btn.textContent = "Copy All";
+      btn.classList.remove("copied");
+    }, 1500);
+  });
+});
+
+document.getElementById("exportInputModal")!.addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) closeExportInputModal();
+});
+
+// --- Export to Pastebin ---
+
+let lastResults: PlayerResult[] = [];
+
+let lastPastebinUrl: string | null = null;
+
+document.getElementById("exportPastebinBtn")!.addEventListener("click", async () => {
+  const sections: string[] = [];
+  for (const result of lastResults) {
+    let section = `${result.player}\n`;
+    section += formatTasksAsText(result.taskList);
+    sections.push(section);
+  }
+  const text = sections.join("\n\n");
+
+  const btn = document.getElementById("exportPastebinBtn")!;
+  btn.textContent = "Uploading...";
+
+  try {
+    const res = await fetch("https://dpaste.com/api/", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ content: text, expiry_days: "30" }),
+    });
+    if (!res.ok) throw new Error("Upload failed");
+    const url = (await res.text()).trim();
+    lastPastebinUrl = url;
+    await navigator.clipboard.writeText(url);
+    btn.textContent = "Link Copied!";
+    btn.classList.add("copied");
+    const link = document.getElementById("pastebinLink") as HTMLAnchorElement;
+    link.href = url;
+    link.textContent = url;
+    link.style.display = "";
+    setTimeout(() => {
+      btn.textContent = "Export to Pastebin";
+      btn.classList.remove("copied");
+    }, 2000);
+  } catch {
+    btn.textContent = "Failed - try again";
+    setTimeout(() => { btn.textContent = "Export to Pastebin"; }, 2000);
+  }
+});
 
 // Listen for textarea input to live-update preview
 document.getElementById("importText")!.addEventListener("input", updateImportPreview);
@@ -560,3 +648,115 @@ taskListObserver.observe(document.getElementById("taskList")!, { childList: true
 (window as any).openImportModal = openImportModal;
 (window as any).closeImportModal = closeImportModal;
 (window as any).confirmImport = confirmImport;
+(window as any).openExportInputModal = openExportInputModal;
+(window as any).closeExportInputModal = closeExportInputModal;
+
+// --- LocalStorage Persistence ---
+
+function saveTasksToStorage(): void {
+  const rows = document.querySelectorAll(".task-row");
+  const tasks: { diff: string; desc: string }[] = [];
+  for (const row of rows) {
+    const desc = (row.querySelector(".task-desc") as HTMLTextAreaElement).value;
+    const diff = (row.querySelector(".task-diff") as HTMLInputElement).value;
+    tasks.push({ diff, desc });
+  }
+  localStorage.setItem("earthrp_tasks", JSON.stringify(tasks));
+}
+
+function savePlayersToStorage(): void {
+  const inputs = document.querySelectorAll(".player-name") as NodeListOf<HTMLInputElement>;
+  const players: string[] = [];
+  for (const input of inputs) {
+    players.push(input.value);
+  }
+  localStorage.setItem("earthrp_players", JSON.stringify(players));
+}
+
+function loadFromStorage(): void {
+  const tasksJson = localStorage.getItem("earthrp_tasks");
+  if (tasksJson) {
+    try {
+      const tasks: { diff: string; desc: string }[] = JSON.parse(tasksJson);
+      if (tasks.length > 0) {
+        const list = document.getElementById("taskList")!;
+        list.innerHTML = "";
+        for (const task of tasks) {
+          const row = document.createElement("div");
+          row.className = "task-row";
+          row.innerHTML = `
+            <span class="task-number"></span>
+            <input type="text" class="task-diff" placeholder="e.g. 5 or 3-7" value="${escapeHtml(task.diff)}">
+            <textarea class="task-desc" placeholder="Task description" rows="1">${escapeHtml(task.desc)}</textarea>
+            <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
+          `;
+          list.appendChild(row);
+          autoResizeDesc(row.querySelector(".task-desc") as HTMLTextAreaElement);
+        }
+        renumberTasks();
+      }
+    } catch { /* ignore corrupt data */ }
+  }
+
+  const playersJson = localStorage.getItem("earthrp_players");
+  if (playersJson) {
+    try {
+      const players: string[] = JSON.parse(playersJson);
+      const inputs = document.querySelectorAll(".player-name") as NodeListOf<HTMLInputElement>;
+      for (let i = 0; i < inputs.length && i < players.length; i++) {
+        inputs[i].value = players[i];
+      }
+    } catch { /* ignore corrupt data */ }
+  }
+}
+
+function clearTasks(): void {
+  localStorage.removeItem("earthrp_tasks");
+
+  const list = document.getElementById("taskList")!;
+  list.innerHTML = "";
+  const row = document.createElement("div");
+  row.className = "task-row";
+  row.innerHTML = `
+    <span class="task-number">1.</span>
+    <input type="text" class="task-diff" placeholder="e.g. 5 or 3-7">
+    <textarea class="task-desc" placeholder="Task description" rows="1"></textarea>
+    <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
+  `;
+  list.appendChild(row);
+  autoResizeDesc(row.querySelector(".task-desc") as HTMLTextAreaElement);
+}
+
+function clearPlayers(): void {
+  localStorage.removeItem("earthrp_players");
+
+  const inputs = document.querySelectorAll(".player-name") as NodeListOf<HTMLInputElement>;
+  for (const input of inputs) {
+    input.value = "";
+  }
+}
+
+// Load saved data on startup
+loadFromStorage();
+
+// Attach storage listeners to tasks
+function attachTaskStorageListeners(): void {
+  const taskList = document.getElementById("taskList")!;
+  taskList.addEventListener("input", saveTasksToStorage);
+}
+attachTaskStorageListeners();
+
+// Save tasks when rows are added/removed
+const taskStorageObserver = new MutationObserver(saveTasksToStorage);
+taskStorageObserver.observe(document.getElementById("taskList")!, { childList: true });
+
+// Attach storage listeners to players
+document.querySelectorAll<HTMLInputElement>(".player-name").forEach((input) => {
+  input.addEventListener("input", savePlayersToStorage);
+});
+
+document.getElementById("clearTasksBtn")!.addEventListener("click", clearTasks);
+document.getElementById("clearPlayersBtn")!.addEventListener("click", clearPlayers);
+
+// Auto-resize initial textareas
+document.querySelectorAll<HTMLTextAreaElement>(".task-desc").forEach(autoResizeDesc);

@@ -19,19 +19,24 @@
         <div class="task-list" id="taskList">
           <div class="task-row">
             <span class="task-number">1.</span>
-            <input type="text" class="task-desc" placeholder="Task description">
             <input type="text" class="task-diff" placeholder="e.g. 5 or 3-7">
+            <textarea class="task-desc" placeholder="Task description" rows="1"></textarea>
             <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
           </div>
         </div>
         <div class="task-buttons">
           <button class="btn btn-secondary" id="addTaskBtn" onclick="addTask()">+ Add Task</button>
           <button class="btn btn-secondary" id="importTaskBtn" onclick="openImportModal()">Import from Text</button>
+          <button class="btn btn-secondary" id="exportInputBtn" onclick="openExportInputModal()">Export to Text</button>
+          <button class="btn btn-danger btn-small" id="clearTasksBtn" type="button">Clear</button>
         </div>
       </div>
 
       <div class="panel players-panel">
-        <h2>Players</h2>
+        <div class="panel-header-row">
+          <h2>Players</h2>
+          <button class="btn btn-danger btn-small" id="clearPlayersBtn" type="button">Clear</button>
+        </div>
         <div class="player-grid" id="playerGrid">
           <input type="text" class="player-name" placeholder="Player 1">
           <input type="text" class="player-name" placeholder="Player 2">
@@ -46,35 +51,39 @@
 
       <div class="panel mode-panel">
         <h2>Generation Mode</h2>
-        <div class="mode-toggle">
-          <label class="mode-option">
-            <input type="radio" name="genMode" value="totalScore" checked>
-            <span>Target Total Score</span>
-          </label>
-          <label class="mode-option">
-            <input type="radio" name="genMode" value="taskCount">
-            <span>Number of Tasks</span>
-          </label>
+        <div class="mode-layout">
+          <div class="mode-toggle">
+            <label class="mode-option">
+              <input type="radio" name="genMode" value="totalScore" checked>
+              <span>Target Total Score</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="genMode" value="taskCount">
+              <span>Number of Tasks</span>
+            </label>
+          </div>
+
+          <div class="mode-settings-area">
+            <div class="mode-settings" id="totalScoreSettings">
+              <label class="mode-field-label">Target Total Difficulty</label>
+              <input type="number" id="targetDifficulty" placeholder="e.g. 50" min="1" step="0.5">
+            </div>
+
+            <div class="mode-settings" id="taskCountSettings" style="display: none;">
+              <label class="mode-field-label">Tasks per Player</label>
+              <input type="number" id="tasksPerPlayer" placeholder="e.g. 5" min="1" step="1">
+              <label class="mode-field-label" style="margin-top: 0.75rem;">Target Score</label>
+              <input type="number" id="taskCountTarget" placeholder="auto (lowest possible)" min="0" step="0.5">
+              <p class="mode-hint" id="taskCountHint"></p>
+            </div>
+          </div>
         </div>
 
-        <div class="mode-settings" id="totalScoreSettings">
-          <label class="mode-field-label">Target Total Difficulty</label>
-          <input type="number" id="targetDifficulty" placeholder="e.g. 50" min="1" step="0.5">
-        </div>
-
-        <div class="mode-settings" id="taskCountSettings" style="display: none;">
-          <label class="mode-field-label">Tasks per Player</label>
-          <input type="number" id="tasksPerPlayer" placeholder="e.g. 5" min="1" step="1">
-          <label class="mode-field-label" style="margin-top: 0.75rem;">Target Score</label>
-          <input type="number" id="taskCountTarget" placeholder="auto (lowest possible)" min="0" step="0.5">
-          <p class="mode-hint" id="taskCountHint"></p>
-        </div>
+        <label class="checkbox-row" style="margin-top:1rem;margin-bottom:0;">
+          <input type="checkbox" id="allowDuplicates" checked>
+          <span>Allow duplicate tasks between players</span>
+        </label>
       </div>
-
-      <label class="checkbox-row">
-        <input type="checkbox" id="allowDuplicates" checked>
-        <span>Allow duplicate tasks between players</span>
-      </label>
 
       <button class="btn btn-primary" id="generateBtn" onclick="generate()">Generate Task Lists</button>
     </section>
@@ -82,6 +91,10 @@
     <section class="results-section" id="results" style="display: none;">
       <h2>Generated Task Lists</h2>
       <div class="results-grid" id="resultsGrid"></div>
+      <div style="margin-top:1rem;display:flex;align-items:center;justify-content:center;gap:0.75rem;">
+        <button class="btn btn-secondary" id="exportPastebinBtn">Export to Pastebin</button>
+        <a id="pastebinLink" href="#" target="_blank" style="display:none;color:#f0c040;font-size:0.85rem;"></a>
+      </div>
     </section>
   </div>
 
@@ -99,6 +112,22 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
         <button class="btn btn-primary" id="importConfirmBtn" onclick="confirmImport()" disabled>Confirm Import</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="exportInputModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Export Tasks Input</h2>
+        <button class="btn-icon" onclick="closeExportInputModal()" title="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <pre class="export-text" id="exportInputText"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeExportInputModal()">Close</button>
+        <button class="btn btn-primary" id="exportInputCopyBtn">Copy All</button>
       </div>
     </div>
   </div>
