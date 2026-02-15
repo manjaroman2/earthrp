@@ -57,6 +57,31 @@ header h1 {
 
 /* Task list */
 
+.task-list-header {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 0.25rem;
+  margin-bottom: 0.2rem;
+  font-family: "Consolas", "Fira Code", "Source Code Pro", monospace;
+  font-size: 0.72rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.task-list-hdr-num {
+  min-width: 1.8rem;
+}
+
+.task-list-hdr-score {
+  padding-left: 0.4rem;
+}
+
+.task-list-hdr-desc {
+  flex: 1;
+  padding-left: 1.8rem;
+}
+
 .task-list {
   display: flex;
   flex-direction: column;
@@ -71,8 +96,16 @@ header h1 {
 
 .task-row {
   display: flex;
-  gap: 0.3rem;
+  gap: 0.5rem;
   align-items: flex-start;
+  border-radius: 4px;
+  padding: 0.1rem 0.25rem;
+  transition: background-color 0.2s ease;
+  scroll-margin: 16rem;
+}
+
+.task-row:hover {
+  background-color: rgba(240, 192, 64, 0.06);
 }
 
 .task-row input[type="text"],
@@ -115,7 +148,9 @@ header h1 {
 }
 
 .task-diff {
-  width: 120px;
+  field-sizing: content;
+  min-width: 3ch;
+  max-width: 8ch;
 }
 
 input[type="text"],
@@ -307,6 +342,7 @@ input::placeholder {
 .task-item {
   display: flex;
   align-items: baseline;
+  gap: 0.4rem;
   padding: 0.05rem 0.75rem;
   line-height: 1.3;
 }
@@ -348,6 +384,7 @@ input::placeholder {
   text-align: right;
   flex-shrink: 0;
   font-family: inherit;
+  padding: 0.2rem 0;
 }
 
 /* Task buttons row */

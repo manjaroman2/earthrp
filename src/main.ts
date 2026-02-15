@@ -6,6 +6,7 @@ interface Difficulty {
 }
 
 interface Task {
+  num: number;
   desc: string;
   diff: Difficulty;
 }
@@ -48,7 +49,7 @@ function addTask(): void {
   row.className = "task-row";
   row.innerHTML = `
     <span class="task-number"></span>
-    <input type="text" class="task-diff" placeholder="e.g. 5 or 3-7">
+    <input type="text" class="task-diff" placeholder="3-7">
     <textarea class="task-desc" placeholder="Task description" rows="1"></textarea>
     <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
   `;
@@ -82,14 +83,24 @@ function parseDifficulty(str: string): Difficulty | null {
 function gatherTasks(): Task[] {
   const rows = document.querySelectorAll(".task-row");
   const tasks: Task[] = [];
-  for (const row of rows) {
-    const desc = (row.querySelector(".task-desc") as HTMLTextAreaElement).value.trim();
-    const diffStr = (row.querySelector(".task-diff") as HTMLInputElement).value.trim();
-    if (!desc || !diffStr) continue;
-    const diff = parseDifficulty(diffStr);
-    if (!diff) continue;
-    tasks.push({ desc, diff });
-  }
+
+  for (const [index, row] of rows.entries()) { 
+      const desc = (row.querySelector(".task-desc") as HTMLTextAreaElement).value.trim();
+      const diffStr = (row.querySelector(".task-diff") as HTMLInputElement).value.trim();
+      if (!desc || !diffStr) continue;
+      const diff = parseDifficulty(diffStr);
+      if (!diff) continue;
+      tasks.push({ num: index + 1, desc, diff });
+   }
+
+  // for (const row of rows) {
+  //   const desc = (row.querySelector(".task-desc") as HTMLTextAreaElement).value.trim();
+  //   const diffStr = (row.querySelector(".task-diff") as HTMLInputElement).value.trim();
+  //   if (!desc || !diffStr) continue;
+  //   const diff = parseDifficulty(diffStr);
+  //   if (!diff) continue;
+  //   tasks.push({ desc, diff });
+  // }
   return tasks;
 }
 
@@ -240,7 +251,7 @@ function getGenMode(): string {
 }
 
 function formatTasksAsText(taskList: Task[]): string {
-  return taskList.map((t, i) => `${i + 1}. ${t.diff.label}/ ${t.desc}`).join("\n");
+  return taskList.map((t) => `${t.num}. ${t.diff.label}/ ${t.desc}`).join("\n");
 }
 
 function copyPlayerTasks(player: string, taskList: Task[]): void {
@@ -384,7 +395,7 @@ function generate(): void {
       tasksHtml += `
         <div class="task-item">
           <span class="task-item-diff">${escapeHtml(task.diff.label)}/</span>
-          <span class="task-item-desc"> ${escapeHtml(task.desc)}</span>
+          <span class="task-item-desc">${escapeHtml(task.desc)}</span>
         </div>
       `;
     });
@@ -436,7 +447,7 @@ function parseImportText(text: string): ParseResult {
     const diff = parseDifficulty(diffStr);
     if (!diff) return { ok: false, tasks: [], error: `Invalid difficulty "${diffStr}" in line: "${line}"` };
 
-    tasks.push({ desc, diff, diffStr });
+    tasks.push({ num: tasks.length + 1, desc, diff, diffStr });
   }
 
   if (tasks.length === 0) return { ok: false, tasks: [], error: "No tasks found in text." };
@@ -502,7 +513,7 @@ function confirmImport(): void {
     row.className = "task-row";
     row.innerHTML = `
       <span class="task-number"></span>
-      <input type="text" class="task-diff" placeholder="e.g. 5 or 3-7" value="${escapeHtml(task.diffStr)}">
+      <input type="text" class="task-diff" placeholder="3-7" value="${escapeHtml(task.diffStr)}">
       <textarea class="task-desc" placeholder="Task description" rows="1">${escapeHtml(task.desc)}</textarea>
       <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
     `;
@@ -519,7 +530,7 @@ function openExportInputModal(): void {
   const modal = document.getElementById("exportInputModal")!;
   const exportText = document.getElementById("exportInputText")!;
   const tasks = gatherTasks();
-  exportText.textContent = tasks.map((t, i) => `${i + 1}. ${t.diff.label}/ ${t.desc}`).join("\n");
+  exportText.textContent = tasks.map((t) => `${t.num}. ${t.diff.label}/ ${t.desc}`).join("\n");
   modal.classList.add("active");
 }
 
@@ -597,21 +608,30 @@ document.getElementById("importModal")!.addEventListener("click", (e) => {
 });
 
 // Mode switching
+function applyModeSettings(): void {
+  const mode = getGenMode();
+  const totalScoreSettings = document.getElementById("totalScoreSettings")!;
+  const taskCountSettings = document.getElementById("taskCountSettings")!;
+  if (mode === "totalScore") {
+    totalScoreSettings.style.display = "";
+    taskCountSettings.style.display = "none";
+  } else {
+    totalScoreSettings.style.display = "none";
+    taskCountSettings.style.display = "";
+    updateTaskCountHint();
+  }
+}
+
 const modeRadios = document.querySelectorAll('input[name="genMode"]') as NodeListOf<HTMLInputElement>;
 modeRadios.forEach((radio) => {
   radio.addEventListener("change", () => {
-    const totalScoreSettings = document.getElementById("totalScoreSettings")!;
-    const taskCountSettings = document.getElementById("taskCountSettings")!;
-    if (radio.value === "totalScore") {
-      totalScoreSettings.style.display = "";
-      taskCountSettings.style.display = "none";
-    } else {
-      totalScoreSettings.style.display = "none";
-      taskCountSettings.style.display = "";
-      updateTaskCountHint();
-    }
+    applyModeSettings();
+    document.querySelector(".mode-panel")!.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 });
+
+// Sync initial display state with whichever radio the browser has checked
+applyModeSettings();
 
 function updateTaskCountHint(): void {
   const hint = document.getElementById("taskCountHint")!;
@@ -686,7 +706,7 @@ function loadFromStorage(): void {
           row.className = "task-row";
           row.innerHTML = `
             <span class="task-number"></span>
-            <input type="text" class="task-diff" placeholder="e.g. 5 or 3-7" value="${escapeHtml(task.diff)}">
+            <input type="text" class="task-diff" placeholder="3-7" value="${escapeHtml(task.diff)}">
             <textarea class="task-desc" placeholder="Task description" rows="1">${escapeHtml(task.desc)}</textarea>
             <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
           `;
@@ -719,7 +739,7 @@ function clearTasks(): void {
   row.className = "task-row";
   row.innerHTML = `
     <span class="task-number">1.</span>
-    <input type="text" class="task-diff" placeholder="e.g. 5 or 3-7">
+    <input type="text" class="task-diff" placeholder="3-7">
     <textarea class="task-desc" placeholder="Task description" rows="1"></textarea>
     <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
   `;
@@ -757,6 +777,11 @@ document.querySelectorAll<HTMLInputElement>(".player-name").forEach((input) => {
 
 document.getElementById("clearTasksBtn")!.addEventListener("click", clearTasks);
 document.getElementById("clearPlayersBtn")!.addEventListener("click", clearPlayers);
+
+// Scroll to players panel on focus
+document.querySelector(".players-panel")!.addEventListener("focusin", () => {
+  document.querySelector(".players-panel")!.scrollIntoView({ behavior: "smooth", block: "nearest" });
+});
 
 // Auto-resize initial textareas
 document.querySelectorAll<HTMLTextAreaElement>(".task-desc").forEach(autoResizeDesc);

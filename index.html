@@ -16,10 +16,15 @@
     <section class="config-section">
       <div class="panel tasks-panel">
         <h2>Tasks</h2>
+        <div class="task-list-header">
+          <span class="task-list-hdr-num"></span>
+          <span class="task-list-hdr-score">Score</span>
+          <span class="task-list-hdr-desc">Description</span>
+        </div>
         <div class="task-list" id="taskList">
           <div class="task-row">
             <span class="task-number">1.</span>
-            <input type="text" class="task-diff" placeholder="e.g. 5 or 3-7">
+            <input type="text" class="task-diff" placeholder="3-7">
             <textarea class="task-desc" placeholder="Task description" rows="1"></textarea>
             <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
           </div>
