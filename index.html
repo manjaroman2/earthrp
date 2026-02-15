@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Player Task Generator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Player Task Generator</h1>
+      <p class="subtitle">Generate balanced task lists for each player</p>
+    </header>
+
+    <section class="config-section">
+      <div class="panel tasks-panel">
+        <h2>Tasks</h2>
+        <div class="task-list" id="taskList">
+          <div class="task-row">
+            <input type="text" class="task-desc" placeholder="Task description">
+            <input type="text" class="task-diff" placeholder="e.g. 5 or 3-7">
+            <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
+          </div>
+        </div>
+        <button class="btn btn-secondary" id="addTaskBtn" onclick="addTask()">+ Add Task</button>
+      </div>
+
+      <div class="panel players-panel">
+        <h2>Players</h2>
+        <div class="player-grid" id="playerGrid">
+          <input type="text" class="player-name" placeholder="Player 1">
+          <input type="text" class="player-name" placeholder="Player 2">
+          <input type="text" class="player-name" placeholder="Player 3">
+          <input type="text" class="player-name" placeholder="Player 4">
+          <input type="text" class="player-name" placeholder="Player 5">
+          <input type="text" class="player-name" placeholder="Player 6">
+          <input type="text" class="player-name" placeholder="Player 7">
+          <input type="text" class="player-name" placeholder="Player 8">
+        </div>
+      </div>
+
+      <div class="panel target-panel">
+        <h2>Target Total Difficulty</h2>
+        <input type="number" id="targetDifficulty" placeholder="e.g. 50" min="1" step="0.5">
+      </div>
+
+      <button class="btn btn-primary" id="generateBtn" onclick="generate()">Generate Task Lists</button>
+    </section>
+
+    <section class="results-section" id="results" style="display: none;">
+      <h2>Generated Task Lists</h2>
+      <div class="results-grid" id="resultsGrid"></div>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

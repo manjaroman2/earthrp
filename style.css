@@ -1,0 +1,280 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+header h1 {
+  font-size: 2.2rem;
+  color: #f0c040;
+  letter-spacing: 0.02em;
+}
+
+.subtitle {
+  color: #999;
+  margin-top: 0.3rem;
+  font-size: 1rem;
+}
+
+/* Panels */
+
+.panel {
+  background: #16213e;
+  border: 1px solid #2a2a4a;
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.panel h2 {
+  font-size: 1.15rem;
+  color: #f0c040;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #2a2a4a;
+  padding-bottom: 0.5rem;
+}
+
+/* Task list */
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.task-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.task-desc {
+  flex: 1;
+}
+
+.task-diff {
+  width: 120px;
+}
+
+input[type="text"],
+input[type="number"] {
+  background: #0f1a30;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  padding: 0.55rem 0.75rem;
+  color: #e0e0e0;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+
+input:focus {
+  outline: none;
+  border-color: #f0c040;
+}
+
+input::placeholder {
+  color: #555;
+}
+
+/* Buttons */
+
+.btn {
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.4rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: #f0c040;
+  color: #1a1a2e;
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 0.8rem 2rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.btn-primary:hover {
+  background: #e0b030;
+}
+
+.btn-secondary {
+  background: #2a2a4a;
+  color: #ccc;
+}
+
+.btn-secondary:hover {
+  background: #3a3a5a;
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 1.3rem;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-icon:hover {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+/* Player grid */
+
+.player-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.player-name {
+  width: 100%;
+}
+
+/* Target panel */
+
+.target-panel input {
+  width: 100%;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
+/* Results */
+
+.results-section {
+  margin-top: 2.5rem;
+}
+
+.results-section > h2 {
+  font-size: 1.4rem;
+  color: #f0c040;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.2rem;
+}
+
+.player-card {
+  background: #16213e;
+  border: 1px solid #2a2a4a;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.player-card-header {
+  background: #1e2d50;
+  padding: 0.8rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.player-card-header h3 {
+  font-size: 1.05rem;
+  color: #f0c040;
+}
+
+.player-card-header .total-diff {
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
+.player-card-body {
+  padding: 0.6rem 0;
+}
+
+.task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.45rem 1rem;
+  border-bottom: 1px solid #1a1a2e;
+}
+
+.task-item:last-child {
+  border-bottom: none;
+}
+
+.task-item-desc {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.task-item-diff {
+  font-size: 0.85rem;
+  color: #f0c040;
+  font-weight: 600;
+  margin-left: 0.5rem;
+  white-space: nowrap;
+}
+
+/* Error message */
+
+.error-msg {
+  background: rgba(255, 80, 80, 0.15);
+  border: 1px solid #ff5050;
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  color: #ff8888;
+  margin-top: 1rem;
+}
+
+/* Responsive */
+
+@media (max-width: 600px) {
+  .player-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .results-grid {
+    grid-template-columns: 1fr;
+  }
+
+  header h1 {
+    font-size: 1.6rem;
+  }
+}
