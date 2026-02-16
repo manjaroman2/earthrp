@@ -377,7 +377,7 @@ function addTask(): void {
   row.innerHTML = `
     <span class="task-number"></span>
     <input type="text" class="task-diff" placeholder="3-7">
-    <textarea class="task-desc" placeholder="Task description" rows="1"></textarea>
+    <textarea class="task-desc" spellcheck="false" placeholder="Task description" rows="1"></textarea>
     <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
   `;
   list.appendChild(row);
@@ -1109,7 +1109,7 @@ function loadFromStorage(): void {
           row.innerHTML = `
             <span class="task-number"></span>
             <input type="text" class="task-diff" placeholder="3-7" value="${escapeHtml(task.diff)}">
-            <textarea class="task-desc" placeholder="Task description" rows="1">${escapeHtml(task.desc)}</textarea>
+            <textarea class="task-desc" spellcheck="false" placeholder="Task description" rows="1">${escapeHtml(task.desc)}</textarea>
             <button class="btn-icon btn-remove" onclick="removeTask(this)" title="Remove task">&times;</button>
           `;
           list.appendChild(row);
