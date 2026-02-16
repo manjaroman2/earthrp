@@ -1,3 +1,330 @@
+// --- Achievable score computation (subset-sum DP) ---
+
+/** All achievable subset sums (any count) from task avg difficulties, in 0.5 steps */
+function computeAchievableScores(avgs: number[]): Set<number> {
+  // Work in half-integers to avoid float issues
+  const halves = avgs.map((v) => Math.round(v * 2));
+  const maxSum = halves.reduce((a, b) => a + b, 0);
+  const dp = new Uint8Array(maxSum + 1);
+  dp[0] = 1;
+  for (const h of halves) {
+    // iterate backwards so each task is used at most once
+    for (let s = maxSum; s >= h; s--) {
+      if (dp[s - h]) dp[s] = 1;
+    }
+  }
+  const result = new Set<number>();
+  for (let s = 1; s <= maxSum; s++) {
+    if (dp[s]) result.add(s / 2);
+  }
+  return result;
+}
+
+/** All achievable sums using exactly `count` tasks */
+function computeAchievableScoresForCount(avgs: number[], count: number): Set<number> {
+  const halves = avgs.map((v) => Math.round(v * 2));
+  const n = halves.length;
+  const maxSum = halves.reduce((a, b) => a + b, 0);
+  // dp[k][s] = reachable with exactly k items summing to s
+  // Use flat arrays: index = k * (maxSum+1) + s
+  const width = maxSum + 1;
+  const dp = new Uint8Array((count + 1) * width);
+  dp[0] = 1; // k=0, s=0
+  for (const h of halves) {
+    // iterate k downward, s downward
+    for (let k = count - 1; k >= 0; k--) {
+      for (let s = maxSum - h; s >= 0; s--) {
+        if (dp[k * width + s]) {
+          dp[(k + 1) * width + s + h] = 1;
+        }
+      }
+    }
+  }
+  const result = new Set<number>();
+  for (let s = 0; s <= maxSum; s++) {
+    if (dp[count * width + s]) result.add(s / 2);
+  }
+  return result;
+}
+
+// --- Multi-player feasibility (greedy subset extraction with DP backtracking) ---
+
+/** Find one subset (any size) from `avgs` summing to `target`. Returns indices or null. */
+function findSubsetForSum(avgs: number[], target: number): number[] | null {
+  const halves = avgs.map((v) => Math.round(v * 2));
+  const targetH = Math.round(target * 2);
+  const n = avgs.length;
+  const maxSum = halves.reduce((a, b) => a + b, 0);
+  if (targetH > maxSum || targetH <= 0) return null;
+
+  const dp = new Uint8Array(maxSum + 1);
+  dp[0] = 1;
+  const states: Uint8Array[] = [new Uint8Array(dp)];
+  for (let i = 0; i < n; i++) {
+    for (let s = maxSum; s >= halves[i]; s--) {
+      if (dp[s - halves[i]]) dp[s] = 1;
+    }
+    states.push(new Uint8Array(dp));
+  }
+  if (!dp[targetH]) return null;
+
+  const result: number[] = [];
+  let s = targetH;
+  for (let i = n - 1; i >= 0; i--) {
+    if (s >= halves[i] && states[i][s - halves[i]]) {
+      result.push(i);
+      s -= halves[i];
+    }
+  }
+  return result;
+}
+
+/** Find one subset of exactly `count` items from `avgs` summing to `target`. Returns indices or null. */
+function findSubsetForCount(avgs: number[], count: number, target: number): number[] | null {
+  const halves = avgs.map((v) => Math.round(v * 2));
+  const targetH = Math.round(target * 2);
+  const n = avgs.length;
+  if (count > n) return null;
+  const maxSum = halves.reduce((a, b) => a + b, 0);
+  if (targetH > maxSum || targetH < 0) return null;
+
+  const width = maxSum + 1;
+  const dp = new Uint8Array((count + 1) * width);
+  dp[0] = 1;
+  const states: Uint8Array[] = [new Uint8Array(dp)];
+  for (let i = 0; i < n; i++) {
+    const h = halves[i];
+    for (let k = count - 1; k >= 0; k--) {
+      for (let s = maxSum - h; s >= 0; s--) {
+        if (dp[k * width + s]) dp[(k + 1) * width + s + h] = 1;
+      }
+    }
+    states.push(new Uint8Array(dp));
+  }
+  if (!dp[count * width + targetH]) return null;
+
+  const result: number[] = [];
+  let k = count, s = targetH;
+  for (let i = n - 1; i >= 0; i--) {
+    const h = halves[i];
+    if (k > 0 && s >= h && states[i][(k - 1) * width + (s - h)]) {
+      result.push(i);
+      k--;
+      s -= h;
+    }
+  }
+  return k === 0 ? result : null;
+}
+
+/** Check if `numPlayers` can each get a disjoint subset summing to `target` */
+function canServeAllPlayers(
+  avgs: number[], numPlayers: number, count: number | null, target: number,
+): boolean {
+  let remaining = avgs.map((_, i) => i);
+  for (let p = 0; p < numPlayers; p++) {
+    const remAvgs = remaining.map((i) => avgs[i]);
+    const subset = count !== null
+      ? findSubsetForCount(remAvgs, count, target)
+      : findSubsetForSum(remAvgs, target);
+    if (!subset) return false;
+    const used = new Set(subset);
+    remaining = remaining.filter((_, localIdx) => !used.has(localIdx));
+  }
+  return true;
+}
+
+// --- Score Slider (segmented bar) ---
+
+class ScoreSlider {
+  container: HTMLElement;
+  valueEl: HTMLElement;
+  barEl: HTMLElement;
+  boundsEl: HTMLElement;
+  achievable: number[] = [];
+  achievableSet: Set<number> = new Set();
+  allValues: number[] = [];
+  selectedValue: number | null = null;
+  emptyText: string;
+  onChange: ((value: number | null) => void) | null = null;
+  private isDragging = false;
+
+  constructor(containerId: string, emptyText: string) {
+    this.container = document.getElementById(containerId)!;
+    this.emptyText = emptyText;
+
+    this.valueEl = document.createElement("div");
+    this.valueEl.className = "score-slider-value";
+
+    this.barEl = document.createElement("div");
+    this.barEl.className = "score-bar";
+
+    this.boundsEl = document.createElement("div");
+    this.boundsEl.className = "score-slider-bounds";
+
+    this.container.appendChild(this.valueEl);
+    this.container.appendChild(this.barEl);
+    this.container.appendChild(this.boundsEl);
+
+    this.barEl.addEventListener("mousedown", (e) => this.onPointerDown(e));
+    document.addEventListener("mousemove", (e) => this.onPointerMove(e));
+    document.addEventListener("mouseup", () => this.onPointerUp());
+    this.barEl.addEventListener("touchstart", (e) => this.onTouchStart(e), { passive: false });
+    document.addEventListener("touchmove", (e) => this.onTouchMove(e), { passive: false });
+    document.addEventListener("touchend", () => this.onPointerUp());
+
+    this.showEmpty();
+  }
+
+  private showEmpty(message?: string): void {
+    this.valueEl.innerHTML = `<span class="score-slider-empty">${message ?? this.emptyText}</span>`;
+    this.barEl.innerHTML = "";
+    this.boundsEl.innerHTML = "";
+    this.selectedValue = null;
+    this.allValues = [];
+    this.achievable = [];
+    this.achievableSet = new Set();
+  }
+
+  update(achievable: Set<number>, emptyMessage?: string): void {
+    this.achievable = [...achievable].sort((a, b) => a - b);
+    this.achievableSet = new Set(this.achievable);
+
+    if (this.achievable.length === 0) {
+      this.showEmpty(emptyMessage);
+      return;
+    }
+
+    const min = this.achievable[0];
+    const max = this.achievable[this.achievable.length - 1];
+
+    this.allValues = [];
+    for (let v = min; v <= max + 0.01; v += 0.5) {
+      this.allValues.push(Math.round(v * 2) / 2);
+    }
+
+    if (this.selectedValue !== null && achievable.has(this.selectedValue)) {
+      // keep current selection
+    } else {
+      this.selectedValue = min;
+    }
+
+    this.renderBar();
+    this.updateDisplay();
+  }
+
+  private renderBar(): void {
+    this.barEl.innerHTML = "";
+
+    for (const v of this.allValues) {
+      const seg = document.createElement("div");
+      seg.className = "score-segment";
+      if (this.achievableSet.has(v)) seg.classList.add("achievable");
+      if (v === this.selectedValue) seg.classList.add("selected");
+      seg.dataset.value = String(v);
+      this.barEl.appendChild(seg);
+    }
+
+    if (this.allValues.length > 0) {
+      const min = this.allValues[0];
+      const max = this.allValues[this.allValues.length - 1];
+      if (min === max) {
+        this.boundsEl.innerHTML = `<span>${min}</span>`;
+      } else {
+        this.boundsEl.innerHTML = `<span>${min}</span><span>${max}</span>`;
+      }
+    }
+  }
+
+  private selectFromPosition(clientX: number): void {
+    if (this.allValues.length === 0) return;
+    const rect = this.barEl.getBoundingClientRect();
+    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    const ratio = x / rect.width;
+    const index = Math.round(ratio * (this.allValues.length - 1));
+    const clamped = Math.max(0, Math.min(index, this.allValues.length - 1));
+    const value = this.allValues[clamped];
+
+    const snapped = this.snapToAchievable(value);
+    if (snapped !== this.selectedValue) {
+      this.selectedValue = snapped;
+      this.updateDisplay();
+      this.updateSegmentClasses();
+      if (this.onChange) this.onChange(this.selectedValue);
+    }
+  }
+
+  private onPointerDown(e: MouseEvent): void {
+    if (this.allValues.length === 0) return;
+    this.isDragging = true;
+    this.selectFromPosition(e.clientX);
+    e.preventDefault();
+  }
+
+  private onPointerMove(e: MouseEvent): void {
+    if (!this.isDragging) return;
+    this.selectFromPosition(e.clientX);
+  }
+
+  private onPointerUp(): void {
+    this.isDragging = false;
+  }
+
+  private onTouchStart(e: TouchEvent): void {
+    if (this.allValues.length === 0) return;
+    this.isDragging = true;
+    this.selectFromPosition(e.touches[0].clientX);
+    e.preventDefault();
+  }
+
+  private onTouchMove(e: TouchEvent): void {
+    if (!this.isDragging) return;
+    this.selectFromPosition(e.touches[0].clientX);
+    e.preventDefault();
+  }
+
+  private snapToAchievable(value: number): number {
+    if (this.achievable.length === 0) return value;
+    let closest = this.achievable[0];
+    let minDist = Math.abs(value - closest);
+    for (const v of this.achievable) {
+      const dist = Math.abs(value - v);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = v;
+      }
+    }
+    return closest;
+  }
+
+  private updateSegmentClasses(): void {
+    const segments = this.barEl.querySelectorAll(".score-segment");
+    for (const seg of segments) {
+      const v = parseFloat((seg as HTMLElement).dataset.value!);
+      seg.classList.toggle("selected", v === this.selectedValue);
+    }
+  }
+
+  private updateDisplay(): void {
+    if (this.selectedValue === null) {
+      this.valueEl.innerHTML = `<span class="score-slider-empty">${this.emptyText}</span>`;
+    } else {
+      this.valueEl.textContent = String(this.selectedValue);
+    }
+  }
+
+  getValue(): number | null {
+    return this.selectedValue;
+  }
+
+  setValue(v: number): void {
+    if (this.achievable.includes(v)) {
+      this.selectedValue = v;
+      this.updateDisplay();
+      this.updateSegmentClasses();
+    }
+  }
+}
+
 interface Difficulty {
   low: number;
   high: number;
@@ -274,42 +601,68 @@ function copyPlayerTasks(player: string, taskList: Task[]): void {
   });
 }
 
+function clearPanelError(id: string): void {
+  const el = document.getElementById(id)!;
+  el.textContent = "";
+  el.closest(".panel")?.classList.remove("panel-has-error");
+}
+
+function clearPanelErrors(): void {
+  clearPanelError("tasksError");
+  clearPanelError("playersError");
+  clearPanelError("modeError");
+}
+
+function setPanelError(id: string, message: string): void {
+  const el = document.getElementById(id)!;
+  el.textContent = message;
+  el.closest(".panel")?.classList.add("panel-has-error");
+}
+
 function generate(): void {
+  clearPanelErrors();
+
   const tasks = gatherTasks();
   const players = gatherPlayers();
   const mode = getGenMode();
 
-  const errors: string[] = [];
-  if (tasks.length === 0) errors.push("Add at least one task with description and valid difficulty.");
-  if (players.length === 0) errors.push("Enter at least one player name.");
+  let hasErrors = false;
+  if (tasks.length === 0) {
+    setPanelError("tasksError", "Add at least one task with description and valid difficulty.");
+    hasErrors = true;
+  }
+  if (players.length === 0) {
+    setPanelError("playersError", "Enter at least one player name.");
+    hasErrors = true;
+  }
 
   let target = 0;
   let taskCount = 0;
 
   if (mode === "totalScore") {
-    const targetInput = document.getElementById("targetDifficulty") as HTMLInputElement;
-    target = parseFloat(targetInput.value);
-    if (isNaN(target) || target <= 0) errors.push("Enter a valid target total difficulty.");
-
-    if (tasks.length > 0 && !isNaN(target) && target > 0) {
-      const minAvg = Math.min(...tasks.map((t) => t.diff.avg));
-      if (minAvg > target) {
-        errors.push(`Smallest task difficulty (${minAvg}) exceeds target (${target}).`);
-      }
+    const val = totalScoreSlider.getValue();
+    if (val === null || val <= 0) {
+      setPanelError("modeError", "Add tasks to set a target total difficulty.");
+      hasErrors = true;
+    } else {
+      target = val;
     }
   } else {
     const countInput = document.getElementById("tasksPerPlayer") as HTMLInputElement;
     taskCount = parseInt(countInput.value);
-    if (isNaN(taskCount) || taskCount <= 0) errors.push("Enter a valid number of tasks per player.");
+    if (isNaN(taskCount) || taskCount <= 0) {
+      setPanelError("modeError", "Enter a valid number of tasks per player.");
+      hasErrors = true;
+    }
 
     if (tasks.length > 0 && !isNaN(taskCount) && taskCount > 0) {
       if (taskCount > tasks.length) {
-        errors.push(`Not enough tasks (${tasks.length}) for ${taskCount} per player.`);
+        setPanelError("modeError", `Not enough tasks (${tasks.length}) for ${taskCount} per player.`);
+        hasErrors = true;
       } else {
-        const targetInput = document.getElementById("taskCountTarget") as HTMLInputElement;
-        const targetVal = parseFloat(targetInput.value);
-        if (!isNaN(targetVal) && targetVal > 0) {
-          target = targetVal;
+        const val = taskCountTargetSlider.getValue();
+        if (val !== null && val > 0) {
+          target = val;
         } else {
           target = getMinScoreForCount(tasks, taskCount);
         }
@@ -320,9 +673,7 @@ function generate(): void {
   const resultsSection = document.getElementById("results")!;
   const resultsGrid = document.getElementById("resultsGrid")!;
 
-  if (errors.length > 0) {
-    resultsGrid.innerHTML = `<div class="error-msg">${errors.join("<br>")}</div>`;
-    resultsSection.style.display = "block";
+  if (hasErrors) {
     return;
   }
 
@@ -369,11 +720,7 @@ function generate(): void {
   resultsGrid.innerHTML = "";
 
   if (failed) {
-    const warning = document.createElement("div");
-    warning.className = "error-msg";
-    warning.textContent =
-      "Could not exactly reach the target for all players. Try adjusting the target, the number of tasks, or adding tasks with smaller difficulties.";
-    resultsGrid.appendChild(warning);
+    setPanelError("modeError", "Could not exactly reach the target for all players. Try adjusting the target, the number of tasks, or adding tasks with smaller difficulties.");
   }
 
   // Store results for copy/export handlers
@@ -521,6 +868,7 @@ function confirmImport(): void {
     autoResizeDesc(row.querySelector(".task-desc") as HTMLTextAreaElement);
   }
   renumberTasks();
+  clearPanelError("tasksError");
   closeImportModal();
 }
 
@@ -615,10 +963,11 @@ function applyModeSettings(): void {
   if (mode === "totalScore") {
     totalScoreSettings.style.display = "";
     taskCountSettings.style.display = "none";
+    refreshTotalScoreSlider();
   } else {
     totalScoreSettings.style.display = "none";
     taskCountSettings.style.display = "";
-    updateTaskCountHint();
+    refreshTaskCountSlider();
   }
 }
 
@@ -630,35 +979,88 @@ modeRadios.forEach((radio) => {
   });
 });
 
-// Sync initial display state with whichever radio the browser has checked
-applyModeSettings();
+// --- Slider instances ---
 
-function updateTaskCountHint(): void {
-  const hint = document.getElementById("taskCountHint")!;
+const totalScoreSlider = new ScoreSlider("targetDifficultySlider", "Add tasks to see options");
+const taskCountTargetSlider = new ScoreSlider("taskCountTargetSlider", "Set tasks per player first");
+
+function refreshTotalScoreSlider(): void {
+  const tasks = gatherTasks();
+  if (tasks.length === 0) {
+    totalScoreSlider.update(new Set());
+    return;
+  }
+  const avgs = tasks.map((t) => t.diff.avg);
+  const numPlayers = gatherPlayers().length;
+  const allowDuplicates = (document.getElementById("allowDuplicates") as HTMLInputElement).checked;
+
+  let achievable = computeAchievableScores(avgs);
+  if (!allowDuplicates && numPlayers > 1) {
+    const filtered = new Set<number>();
+    for (const score of achievable) {
+      if (canServeAllPlayers(avgs, numPlayers, null, score)) {
+        filtered.add(score);
+      }
+    }
+    achievable = filtered;
+  }
+  totalScoreSlider.update(achievable);
+}
+
+function refreshTaskCountSlider(): void {
   const countInput = document.getElementById("tasksPerPlayer") as HTMLInputElement;
   const count = parseInt(countInput.value);
   const tasks = gatherTasks();
+  const numPlayers = gatherPlayers().length;
+  const allowDuplicates = (document.getElementById("allowDuplicates") as HTMLInputElement).checked;
 
-  if (isNaN(count) || count <= 0 || tasks.length === 0) {
-    hint.textContent = "";
+  if (isNaN(count) || count <= 0) {
+    taskCountTargetSlider.update(new Set(), "Set tasks per player first");
     return;
   }
-
+  if (tasks.length === 0) {
+    taskCountTargetSlider.update(new Set(), "Add tasks to see options");
+    return;
+  }
   if (count > tasks.length) {
-    hint.textContent = `Only ${tasks.length} tasks available.`;
+    taskCountTargetSlider.update(new Set(), `Not enough tasks — need at least ${count}, have ${tasks.length}`);
+    return;
+  }
+  if (!allowDuplicates && numPlayers > 1 && count * numPlayers > tasks.length) {
+    taskCountTargetSlider.update(new Set(), `Need at least ${count * numPlayers} tasks for ${numPlayers} players without duplicates`);
     return;
   }
 
-  const minScore = getMinScoreForCount(tasks, count);
-  hint.textContent = `Lowest possible score with ${count} tasks: ${minScore}`;
+  const avgs = tasks.map((t) => t.diff.avg);
+  let achievable = computeAchievableScoresForCount(avgs, count);
+  if (!allowDuplicates && numPlayers > 1) {
+    const filtered = new Set<number>();
+    for (const score of achievable) {
+      if (canServeAllPlayers(avgs, numPlayers, count, score)) {
+        filtered.add(score);
+      }
+    }
+    achievable = filtered;
+  }
+  taskCountTargetSlider.update(achievable);
 }
 
-document.getElementById("tasksPerPlayer")!.addEventListener("input", updateTaskCountHint);
+function refreshSliders(): void {
+  const mode = getGenMode();
+  if (mode === "totalScore") {
+    refreshTotalScoreSlider();
+  } else {
+    refreshTaskCountSlider();
+  }
+}
 
-// Also update hint when tasks change
-const taskListObserver = new MutationObserver(() => {
-  if (getGenMode() === "taskCount") updateTaskCountHint();
-});
+// Sync initial display state with whichever radio the browser has checked
+applyModeSettings();
+
+document.getElementById("tasksPerPlayer")!.addEventListener("input", refreshTaskCountSlider);
+
+// Update sliders when tasks change
+const taskListObserver = new MutationObserver(() => refreshSliders());
 taskListObserver.observe(document.getElementById("taskList")!, { childList: true, subtree: true });
 
 // Expose functions used by inline onclick handlers
@@ -758,11 +1160,15 @@ function clearPlayers(): void {
 
 // Load saved data on startup
 loadFromStorage();
+refreshSliders();
 
 // Attach storage listeners to tasks
 function attachTaskStorageListeners(): void {
   const taskList = document.getElementById("taskList")!;
-  taskList.addEventListener("input", saveTasksToStorage);
+  taskList.addEventListener("input", () => {
+    saveTasksToStorage();
+    refreshSliders();
+  });
 }
 attachTaskStorageListeners();
 
@@ -770,10 +1176,16 @@ attachTaskStorageListeners();
 const taskStorageObserver = new MutationObserver(saveTasksToStorage);
 taskStorageObserver.observe(document.getElementById("taskList")!, { childList: true });
 
-// Attach storage listeners to players
+// Attach storage listeners to players (also refresh sliders since player count affects achievable scores)
 document.querySelectorAll<HTMLInputElement>(".player-name").forEach((input) => {
-  input.addEventListener("input", savePlayersToStorage);
+  input.addEventListener("input", () => {
+    savePlayersToStorage();
+    refreshSliders();
+  });
 });
+
+// Refresh sliders when duplicates setting changes
+document.getElementById("allowDuplicates")!.addEventListener("change", refreshSliders);
 
 document.getElementById("clearTasksBtn")!.addEventListener("click", clearTasks);
 document.getElementById("clearPlayersBtn")!.addEventListener("click", clearPlayers);
@@ -782,6 +1194,11 @@ document.getElementById("clearPlayersBtn")!.addEventListener("click", clearPlaye
 document.querySelector(".players-panel")!.addEventListener("focusin", () => {
   document.querySelector(".players-panel")!.scrollIntoView({ behavior: "smooth", block: "nearest" });
 });
+
+// Clear panel errors on user interaction
+document.querySelector(".tasks-panel")!.addEventListener("input", () => clearPanelError("tasksError"));
+document.querySelector(".players-panel")!.addEventListener("input", () => clearPanelError("playersError"));
+document.querySelector(".mode-panel")!.addEventListener("input", () => clearPanelError("modeError"));
 
 // Auto-resize initial textareas
 document.querySelectorAll<HTMLTextAreaElement>(".task-desc").forEach(autoResizeDesc);

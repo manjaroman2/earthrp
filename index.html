@@ -35,6 +35,7 @@
           <button class="btn btn-secondary" id="exportInputBtn" onclick="openExportInputModal()">Export to Text</button>
           <button class="btn btn-danger btn-small" id="clearTasksBtn" type="button">Clear</button>
         </div>
+        <div class="panel-error" id="tasksError"></div>
       </div>
 
       <div class="panel players-panel">
@@ -52,6 +53,7 @@
           <input type="text" class="player-name" placeholder="Player 7">
           <input type="text" class="player-name" placeholder="Player 8">
         </div>
+        <div class="panel-error" id="playersError"></div>
       </div>
 
       <div class="panel mode-panel">
@@ -71,15 +73,14 @@
           <div class="mode-settings-area">
             <div class="mode-settings" id="totalScoreSettings">
               <label class="mode-field-label">Target Total Difficulty</label>
-              <input type="number" id="targetDifficulty" placeholder="e.g. 50" min="1" step="0.5">
+              <div class="score-slider-wrap" id="targetDifficultySlider"></div>
             </div>
 
             <div class="mode-settings" id="taskCountSettings" style="display: none;">
               <label class="mode-field-label">Tasks per Player</label>
               <input type="number" id="tasksPerPlayer" placeholder="e.g. 5" min="1" step="1">
               <label class="mode-field-label" style="margin-top: 0.75rem;">Target Score</label>
-              <input type="number" id="taskCountTarget" placeholder="auto (lowest possible)" min="0" step="0.5">
-              <p class="mode-hint" id="taskCountHint"></p>
+              <div class="score-slider-wrap" id="taskCountTargetSlider"></div>
             </div>
           </div>
         </div>
@@ -88,6 +89,7 @@
           <input type="checkbox" id="allowDuplicates" checked>
           <span>Allow duplicate tasks between players</span>
         </label>
+        <div class="panel-error" id="modeError"></div>
       </div>
 
       <button class="btn btn-primary" id="generateBtn" onclick="generate()">Generate Task Lists</button>
